@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # /* ex: set filetype=python ts=4 sw=4 expandtab: */
 
+from threading import Thread,Condition
 import datetime
 import os
 import sys
@@ -20,20 +21,21 @@ from pprint import pprint, pformat
 logger = logging.getLogger(__name__)
 
 class ClipboardListenerTest(unittest.TestCase):
-    #def __init__(self, methodName='runTest'): pass
-    def tearDown(self) -> None: pass
-    def setUp(self) -> None: pass
+    def test_transform(self) -> None:
+        test_cases = [
+                ("a", "a"),
+                (" a", "a"),
+                ("a ", "a"),
+                (" \n  a", "a"), # in the end this a single line with only "a" as a content
+                (" \n  a\n    ", "a"), # in the end this a single line with only "a" as a content
+                (" \n  a\n  b", "  a\n  b"),
+                (" \n  a\n  b\n  ", "  a\n  b"),
+                ]
 
-    @classmethod
-    def setUpClass(cls) -> None: pass
+        for _input, expected in test_cases:
+            actual = transform(_input)
 
-    @classmethod
-    def tearDownClass(cls) -> None: pass
-
-    def test_queue_summary_alter(self) -> None:
-        self.assertIn(   'a', 'abcde', msg='a is supposed to be in abcde')
-        self.assertNotIn('z', 'abcde', msg='z is not supposed to be in abcde')
-        self.assertNotEqual('expected', 'actual', msg='expected is first argument')
+            self.assertEqual(expected, actual)
         # assertAlmostEqual assertAlmostEquals assertDictContainsSubset assertDictEqual
         # assertEqual assertEquals assertFalse assertGreater assertGreaterEqual
         # assertIn assertIs assertIsInstance assertIsNone assertIsNot assertIsNotNone
@@ -79,6 +81,12 @@ def id_to_str(i):
     if i == MR_PRIMARY:   return "primary"
     raise BaseException(str(i))
 
+def get_gtk_clipboard(i):
+    global clip_clipboard, clip_primary
+    if i == MR_CLIPBOARD: return clip_clipboard
+    if i == MR_PRIMARY:   return clip_primary
+    raise BaseException(str(i))
+
 def get_other_gtk_clipboard(i):
     global clip_clipboard, clip_primary
     if i == MR_CLIPBOARD: return clip_primary
@@ -108,29 +116,121 @@ def cb_primary(*args):
     cb(clip_primary.wait_for_text(), MR_PRIMARY, *args)
 
 def transform_to_log_format(s):
+    if s is None:
+        return None
     s = s.replace("\r", "\\r")
     s = s.replace("\n", "\\n")
     if len(s) > 80:
-        s = "[{}]: {}".format
-    s = s[:
+        s = "[{}]: {}".format(len(s), s[:80])
+    return s
 
+def garbage_collector_ignoreA():
+    global _ignoreA
+    to_deleteA = []
+    now = datetime.datetime.now()
+    for k, elem in enumerate(_ignoreA):
+        date = elem[0]
+        if (now - elem[0]).total_seconds() > 20:
+            to_deleteA.append(k)
+
+    for k in sorted(to_deleteA, reverse=True):
+        _ignoreA.pop(k)
+
+
+def set_clipboard(clip, text):
+    global _ignoreA
+    logger.info("Setting %s to %s", id_to_str(clip), transform_to_log_format(text))
+    gtk_clip = get_gtk_clipboard(clip)
+    struct = (datetime.datetime.now(), clip, text)
+    _ignoreA.append(struct)
+    Gtk.Clipboard.set_text(gtk_clip, text, len(text))
+
+def probably_set_by_me(clip, new_text):
+    now = datetime.datetime.now()
+    for past_date, past_clip, past_text in _ignoreA:
+        if (now - past_date).total_seconds() < 10 and \
+            past_clip == clip and \
+            past_text == new_text:
+            logger.info("now: %s, then: %s", past_date, now)
+            return True
+    return False
+
+def transform(text):
+    # trim left newline (+ white characters)
+    text = re.sub(r'\n\s*$', '', text)
+
+    text = re.sub(r'\A\s*\n', '', text)
+    if "\n" not in text:
+        text = text.strip()
+    else:
+        text = re.sub(r'\s+$', '', text, flags=re.M) # trim right each line
+
+    return text
+
+_ignoreA = []
 def cb(new_text, clip, *args):
-    global last_set_time, last_change_time, last_set_clipboard, last_change_clipboard, last_text
-    logger.info("id: %s n: %s", id_to_str(clip), new_text)
+    global last_set_time, last_change_time, last_set_clipboard, last_change_clipboard, last_text, _ignoreA
+
+    id_str = id_to_str(clip)
 
     if new_text is None:
+        logger.info("id: %s new_text is None", id_str)
+        new_text = ''
+        if last_text.get(clip, None) is not None:
+            logger.info("Restoring clipboard !!!!!!!!!!!!!!!!") # trying to work around citrix
+            set_clipboard(clip, last_text.get(clip))
         return
+
+    if probably_set_by_me(clip, new_text):
+        logger.info("id: %s discarding probably my own event", id_str)
+        return
+
+    logger.info("id: %s n: %s", id_str, transform_to_log_format(new_text))
+
+    transformed_text = transform(new_text)
+    if transformed_text != new_text:
+        logger.info("text transformed!")
+        new_text = transformed_text
+        set_clipboard(clip, new_text)
 
     last_change_time[clip] = datetime.datetime.now()
     next_last_change_clipboard = clip
     last_text[clip] = new_text
 
     other_clip     = get_other_clip(clip)
-    other_gtk_clip = get_other_gtk_clipboard(clip)
 
     if last_text.get(other_clip, None) != new_text:
-        Gtk.Clipboard.set_text(other_gtk_clip, new_text, len(new_text))
+        set_clipboard(other_clip, new_text)
+        set_clipboard(clip, new_text) # citrix work around where there is a quick "1) set to none, 2) set to actual value". If my call to revert 1) to value at T=0 happens after 2) then I would have lost 2) on the source. Consequently if I requeue an otherwrite on self, I may add another change
     last_change_clipboard = next_last_change_clipboard
+    garbage_collector_ignoreA()
+
+cv = None
+stop = False
+def start_background_thread(c,p):
+    global cv
+    cv = Condition()
+    args = (cv,c,p)
+    _background_thread = Thread(target=background_thread, args=args).start()
+
+def background_thread(cv,c,p):
+    global stop
+    cv.acquire()
+    while not stop:
+        logger.debug("Going to wait mode")
+        cv.wait(2)
+        if stop:
+            break
+        background_thread_action(c,p)
+        logger.debug("I have either been woken up or timeout expired")
+    logger.info("End of background_thread")
+    cv.release()
+
+def background_thread_action(c,p):
+    #logger.info("A")
+    #logger.info("primary %s".format(p.wait_for_text()))
+    #logger.info("B")
+    pass
 
 last_change_time = {}
 last_text = {}
@@ -140,8 +240,10 @@ last_change_clipboard = None
 clip_primary = None
 clip_clipboard = None
 def go(args) -> None:
+    global cv, stop
     global clip_primary
     global clip_clipboard
+
 
     event_name = 'owner-change'
     if 0:
@@ -155,13 +257,29 @@ def go(args) -> None:
     clip_primary = Gtk.Clipboard.get(Gdk.SELECTION_PRIMARY)
     clip_primary.connect(event_name, cb_primary)
 
+    start_background_thread(clip_clipboard,clip_primary)
+
     logger.info("started")
     Gtk.main()
+    stop = True
+    notify()
     logger.info("ended")
+
+def notify():
+    global cv
+    try:
+        cv.acquire()
+        cv.notify()
+        logger.info("Notified")
+    finally:
+        try:
+            cv.release()
+        except:
+            pass
 
 if __name__ == '__main__':
     logging_conf()
-    if 'VIMF6' in os.environ and False:
+    if 'VIMF6' in os.environ:
         unittest.main()
     else:
         try:
