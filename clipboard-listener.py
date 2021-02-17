@@ -3,6 +3,7 @@
 # /* ex: set filetype=python ts=4 sw=4 expandtab: */
 
 from threading import Thread,Condition
+import textwrap
 import datetime
 import os
 import sys
@@ -109,11 +110,11 @@ def last_set_time_old_enough(i):
 
 def cb_clipboard(*args):
     global clip_clipboard
-    cb(clip_clipboard.wait_for_text(), MR_CLIPBOARD, *args)
+    cb(clip_clipboard, MR_CLIPBOARD, *args)
 
 def cb_primary(*args):
     global clip_primary
-    cb(clip_primary.wait_for_text(), MR_PRIMARY, *args)
+    cb(clip_primary, MR_PRIMARY, *args)
 
 def transform_to_log_format(s):
     if s is None:
@@ -168,8 +169,37 @@ def transform(text):
     return text
 
 _ignoreA = []
-def cb(new_text, clip, *args):
+def cb(rawclip, clip, *args):
     global last_set_time, last_change_time, last_set_clipboard, last_change_clipboard, last_text, _ignoreA
+
+    tb = Gtk.TextBuffer()
+    a=rawclip.wait_is_image_available()
+    b=rawclip.wait_is_rich_text_available(tb)
+    #c=rawclip.wait_is_target_available(TARGET),
+    d=rawclip.wait_is_text_available()
+    e=rawclip.wait_is_uris_available()
+    if False:
+        logger.info("\n" + textwrap.dedent("""
+            wait_is_image_available:     {a}
+            wait_is_rich_text_available: {b}
+            wait_is_text_available:      {d}
+            wait_is_uris_available:      {e}
+            """).format(
+                a=a,
+                b=b,
+                #wait_is_target_available:    {c}
+                #c=rawclip.wait_is_target_available(),
+                d=d,
+                e=e
+                ))
+
+    if not d:
+        logger.info("complex event image:{a} rich:{b} e:{e}".format(a=a,b=b,e=e))
+        return
+
+    new_text = rawclip.wait_for_text()
+
+
 
     id_str = id_to_str(clip)
 
