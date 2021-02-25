@@ -31,12 +31,17 @@ class ClipboardListenerTest(unittest.TestCase):
                 (" \n  a\n    ", "a"), # in the end this a single line with only "a" as a content
                 (" \n  a\n  b", "  a\n  b"),
                 (" \n  a\n  b\n  ", "  a\n  b"),
+                ("a\n\nb", "a\n\nb", "empty lines at the middle of the content should be kept"),
                 ]
 
-        for _input, expected in test_cases:
+        for case in test_cases:
+            message = None
+            if len(case) == 2: _input, expected = case
+            elif len(case) == 3: _input, expected, message = case
+            else: raise BaseException("unexpected case length {}".format(len(case)))
             actual = transform(_input)
 
-            self.assertEqual(expected, actual)
+            self.assertEqual(expected, actual, message)
         # assertAlmostEqual assertAlmostEquals assertDictContainsSubset assertDictEqual
         # assertEqual assertEquals assertFalse assertGreater assertGreaterEqual
         # assertIn assertIs assertIsInstance assertIsNone assertIsNot assertIsNotNone
@@ -164,7 +169,7 @@ def transform(text):
     if "\n" not in text:
         text = text.strip()
     else:
-        text = re.sub(r'\s+$', '', text, flags=re.M) # trim right each line
+        text = re.sub(r'[ \t]+$', '', text, flags=re.M) # trim right each line
 
     return text
 
