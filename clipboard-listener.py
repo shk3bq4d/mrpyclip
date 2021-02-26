@@ -149,7 +149,8 @@ def set_clipboard(clip, text):
     gtk_clip = get_gtk_clipboard(clip)
     struct = (datetime.datetime.now(), clip, text)
     _ignoreA.append(struct)
-    Gtk.Clipboard.set_text(gtk_clip, text, len(text))
+    _bytes = text.encode("utf-8")
+    Gtk.Clipboard.set_text(gtk_clip, text, len(_bytes))
 
 def probably_set_by_me(clip, new_text):
     now = datetime.datetime.now()
