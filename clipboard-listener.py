@@ -143,9 +143,12 @@ def garbage_collector_ignoreA():
         _ignoreA.pop(k)
 
 
-def set_clipboard(clip, text):
+def set_clipboard(clip, text, reason=None):
     global _ignoreA
-    logger.info("Setting %s to %s", id_to_str(clip), transform_to_log_format(text))
+    if reason:
+        logger.info("Setting %s du to %s to %s", id_to_str(clip), reason, transform_to_log_format(text))
+    else:
+        logger.info("Setting %s to %s", id_to_str(clip), transform_to_log_format(text))
     gtk_clip = get_gtk_clipboard(clip)
     struct = (datetime.datetime.now(), clip, text)
     _ignoreA.append(struct)
@@ -213,8 +216,7 @@ def cb(rawclip, clip, *args):
         logger.info("id: %s new_text is None", id_str)
         new_text = ''
         if last_text.get(clip, None) is not None:
-            logger.info("Restoring clipboard !!!!!!!!!!!!!!!!") # trying to work around citrix
-            set_clipboard(clip, last_text.get(clip))
+            set_clipboard(clip, last_text.get(clip), reason="restoring clipboard value as a citrix hack #0")
         return
 
     if probably_set_by_me(clip, new_text):
@@ -225,9 +227,8 @@ def cb(rawclip, clip, *args):
 
     transformed_text = transform(new_text)
     if transformed_text != new_text:
-        logger.info("text transformed!")
         new_text = transformed_text
-        set_clipboard(clip, new_text)
+        set_clipboard(clip, new_text, reason="correcting just changed clipboard with filtered value")
 
     last_change_time[clip] = datetime.datetime.now()
     next_last_change_clipboard = clip
@@ -236,8 +237,8 @@ def cb(rawclip, clip, *args):
     other_clip     = get_other_clip(clip)
 
     if last_text.get(other_clip, None) != new_text:
-        set_clipboard(other_clip, new_text)
-        set_clipboard(clip, new_text) # citrix work around where there is a quick "1) set to none, 2) set to actual value". If my call to revert 1) to value at T=0 happens after 2) then I would have lost 2) on the source. Consequently if I requeue an otherwrite on self, I may add another change
+        set_clipboard(other_clip, new_text, reason="mirror other clipboard")
+        set_clipboard(clip, new_text, reason="citrix hack #1") # citrix work around where there is a quick "1) set to none, 2) set to actual value". If my call to revert 1) to value at T=0 happens after 2) then I would have lost 2) on the source. Consequently if I requeue an otherwrite on self, I may add another change
     last_change_clipboard = next_last_change_clipboard
     garbage_collector_ignoreA()
 
