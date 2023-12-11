@@ -2,6 +2,11 @@
 # -*- coding: utf-8 -*-
 # /* ex: set filetype=python ts=4 sw=4 expandtab: */
 
+# pkill -f 'python3.*clipboard-listener.py'
+# nohup bash -c '~/bin/clipboard-listener.py  2>&1 | ts > ~/.tmp/log/clipboard-listener.log' &>/dev/null </dev/null &
+# tail -f $(ls -1tr ~/.tmp/log/clipboard-listener.log* | grep -vE gz$ | tail -n 1)
+# gitrumo log --patch ~/bin/clipboard-listener.py
+
 from threading import Thread,Condition
 import textwrap
 import datetime
@@ -204,7 +209,8 @@ def cb(rawclip, clip, *args):
     if new_text is None:
         logger.info("id: %s new_text is None", id_str)
         new_text = ''
-        if last_text.get(clip, None) is not None:
+        if last_text.get(clip, None) is not None and False:
+            # 2023.12.04 I am deactivating this block as the freaking ~500 char limitation they put in place frequently sends back None to my clipboard, even if I never quitted the citrix window. So if I'm then restoring the clipboard content with a past value, I am erasing the citrix clipboard which is not what I wanted
             set_clipboard(clip, last_text.get(clip), reason="restoring clipboard value as a citrix hack #0")
         return
 
