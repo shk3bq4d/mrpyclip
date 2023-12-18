@@ -56,6 +56,8 @@ class ClipboardListenerTest(unittest.TestCase):
 #               (f"{compress_prefix85}{a}", b),
                 (f"{compress_prefix85}<~+,^C)z\"9;(g*!N*F'T?8s!0hZh>QP$.!!~>", "a" * 1026, True),
                 (f"{compress_prefix85}<~+,^C)z\"9;(g*!N*F'T?.U\"9:&%n&5>2!!!~>", ("a" * 1025) + "b", True),
+#               (compress_prefix85 + r'+,^C)z"9:571,^jE1Ug17<.M645cg?c`2)IYe?nk,bcL0$gq<Q:_BJu9b>B0/!!!!', ("a" * 1025) + "b", False),
+#               (compress_prefix85 + r'+,^C)z"9?-c9l&K;(^KQ:^;Vlt082B3Z]jT,fNU"Ee$2dT].(0,X0j5sa]Z&J?R<tJ,c%O8@Gm' + "'" + r'Z83]?=7unO^]E0jf+jXA7lREbe6LUI\F=Eun7_fPF=QoFub>1AXAKsN2PQ>2:T*R>Dkj,_D&!rol&2NY$h\"' + "'" + r'P-<Y\.Qelm<.kQ(ZgAs>K3p3T*WWF2@)rM`E"QYtIoH\B"npHK@SQW*%V@N2@KP:mK%Npjs"T#k=CaSrD,_6CNn=G<XKD,X96_hoq?:Y2oH4ag_5qmJf$A/Vj)Z&P\"Y0`7H\2-t9deLp-Y"KQG@$7E=X-WO!L`qF@$aW' + "'" + r'?eZ-a0bam/F=-S<(_]q]k.KMajJt+97.Ua68bM;p' + "'" + r'bp-_!<h8?`2If0RgQ&]:6aj0q3<QI[-<63h5tc!@jCco(i>RWrk;BUhCB6_`8hMLIQRQb^]$D]J' + "'" + r'tVZ9O=aTc**5CXub_-Rh"GAK+=(7ITQgiaj?r:8?p8f`r_HWM-<r<5lbp/A/e\_!1jM>%m/FN^8hMda++Q$' + "'" + r'N@+U5]H9CUdg%<Z' + "'" + r'H_RGm;j8au3P+@(_YOguu_eZK6`0$-0A];S^s-,CRCQU!o=^W58S"""?/.SqD<pMe^&?8ICb9)h3",E4T@ik-O*9>Es@>kVMoS!U<q%-@Q1"!!', ("a" * 1025) + "b", False),
                 ]
 
         for _in, expected, adobe in test_cases:
