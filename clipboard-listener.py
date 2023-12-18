@@ -51,15 +51,15 @@ class ClipboardListenerTest(unittest.TestCase):
             print(a)
             print(base64.a85encode("Random String".encode('us-ascii')).decode())
         test_cases = [
-                (f"{compress_prefix64}H4sIAAAAAAAEAEtMHAWjYBSMYAAAaA+JHwMEAAA=", "a" * 1027),
-                (f"{compress_prefix64}H4sIAAAAAAAEAEtMHAWjYBSMWJAEAC4n78UCBAAA", ("a" * 1025) + "b"),
+                (f"{compress_prefix64}H4sIAAAAAAAEAEtMHAWjYBSMYAAAaA+JHwMEAAA=", "a" * 1027, True),
+                (f"{compress_prefix64}H4sIAAAAAAAEAEtMHAWjYBSMWJAEAC4n78UCBAAA", ("a" * 1025) + "b", True),
 #               (f"{compress_prefix85}{a}", b),
-                (f"{compress_prefix85}<~+,^C)z\"9;(g*!N*F'T?8s!0hZh>QP$.!!~>", "a" * 1026),
-                (f"{compress_prefix85}<~+,^C)z\"9;(g*!N*F'T?.U\"9:&%n&5>2!!!~>", ("a" * 1025) + "b"),
+                (f"{compress_prefix85}<~+,^C)z\"9;(g*!N*F'T?8s!0hZh>QP$.!!~>", "a" * 1026, True),
+                (f"{compress_prefix85}<~+,^C)z\"9;(g*!N*F'T?.U\"9:&%n&5>2!!!~>", ("a" * 1025) + "b", True),
                 ]
 
-        for _in, expected in test_cases:
-            actual =  uncompress(_in)
+        for _in, expected, adobe in test_cases:
+            actual =  uncompress(_in, adobe=adobe)
             self.assertEqual(expected, actual, msg=f"for in {_in}")
 
 
@@ -121,9 +121,9 @@ def decode_base64_gzip(encoded_string):
 
     return original_string
 
-def decode_base85_gzip(encoded_string):
+def decode_base85_gzip(encoded_string, adobe=False):
     # Decode base64
-    decoded_data = base64.a85decode(encoded_string, adobe=True)
+    decoded_data = base64.a85decode(encoded_string, adobe=adobe)
 
     # Decompress gzip
     original_string = gzip.decompress(decoded_data).decode('utf-8')
@@ -133,14 +133,14 @@ def decode_base85_gzip(encoded_string):
 def matches_ud_powershell_compression(s):
     return s.startswith(compress_prefix64) or s.startswith(compress_prefix85)
 
-def uncompress(s: str) -> str:
+def uncompress(s: str, adobe: bool=False) -> str:
     if not s.startswith(compress_prefix64) and not s.startswith(compress_prefix85): raise BaseException("Shouldn't be there")
     if s.startswith(compress_prefix64):
         s = s[len(compress_prefix64):]
         s = decode_base64_gzip(s)
     elif s.startswith(compress_prefix85):
         s = s[len(compress_prefix85):]
-        s = decode_base85_gzip(s)
+        s = decode_base85_gzip(s, adobe=adobe)
     else:
         raise BaseException("unimplemented64-85")
     return s
