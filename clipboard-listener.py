@@ -36,8 +36,8 @@ call_number = 0
 
 # for i in $(seq 3 200);   do c=${#i}; g="$(openssl rand -base64 $i | tr -d ' \n' | sed -r -e 's/^(.{'$(( i - c - 1 ))'}).*/\1/' )"; echo "${i}-${g}"; done
 # for i in $(seq 3 200);   do c=${#i}; g="$(openssl rand -base64 $i | tr -d ' \n' | sed -r -e 's/^(.{'$(( i - c - 1 ))'}).*/\1/' )"; echo "${i}-${g}"; done | while read line; do echo -n "$(tr -d '\n' <<< $line | wc -c)"; echo " $line"; done
-compress_prefix64 = "mrclip64-"
-compress_prefix85 = "mrclip85-"
+compress_prefix64 = "mr64"
+compress_prefix85 = "mr85"
 
 class ClipboardListenerTest(unittest.TestCase):
     def test_compression(self) -> None:
