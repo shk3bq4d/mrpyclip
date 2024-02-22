@@ -75,14 +75,18 @@ class ClipboardListenerTest(unittest.TestCase):
                 (" \n  a\n  b", "  a\n  b"),
                 (" \n  a\n  b\n  ", "  a\n  b"),
                 ("a\n\nb", "a\n\nb", "empty lines at the middle of the content should be kept"),
+                ("a\r", "a"),
+                ("a\r\n", "a"),
+                ("a\r\nb", "a\nb"),
                 ]
 
         for case in test_cases:
-            message = None
+            message = ''
             if len(case) == 2: _input, expected = case
             elif len(case) == 3: _input, expected, message = case
             else: raise BaseException("unexpected case length {}".format(len(case)))
             actual = transform(_input)
+            message = f"{message} for input {transform_to_log_format(case[0])}, output {transform_to_log_format(case[1])} and actual {transform_to_log_format(actual)}"
 
             self.assertEqual(expected, actual, message)
 
@@ -238,6 +242,7 @@ def probably_set_by_me(clip, new_text):
     return False
 
 def transform(text):
+    text = text.replace("\r\n", "\n")
     # trim left newline (+ white characters)
     text = re.sub(r'\n\s*$', '', text)
 
